@@ -1,43 +1,39 @@
 import streamlit as st
-import pandas as pd
-import yfinance as yf
+import numpy as np
+from scipy.stats import norm
 
-# Define a function to fetch options data
-def fetch_options_data(ticker):
-    # Use yfinance to get the options data
-    stock = yf.Ticker(ticker)
-    expirations = stock.options
-
-    # Get options data for the first expiration date
-    opt_data = stock.option_chain(expirations[0])
-    calls = opt_data.calls
-    puts = opt_data.puts
-
-    return calls, puts, expirations
+# Option Pricing function using Black Scholes Model
+def black_scholes_option_price(S, K, r, T, sigma, option_type='call'):
+    d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    
+    if option_type == 'call':
+        option_price = S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+    elif option_type == 'put':
+        option_price = K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
+    
+    return option_price
 
 # Streamlit App
-def main():
-    st.title("Indian Stock Market Option Analysis Tool")
+st.title('Options Analysis in the Indian Stock Market')
 
-    # Sidebar inputs
-    st.sidebar.header("User Input")
-    ticker = st.sidebar.text_input("Stock Symbol", "RELIANCE.NS").strip()
+st.header('Calculate Option Price and Greeks using Black-Scholes Model')
 
-    # Fetch and display options data
-    if ticker:
-        calls, puts, expirations = fetch_options_data(ticker)
-        if not calls.empty and not puts.empty:
-            st.write(f"Options data for {ticker}")
-            st.subheader("Calls")
-            st.dataframe(calls)
+# Input variables
+S = st.number_input('Underlying Stock Price (S)', min_value=0.0, format="%.2f")
+K = st.number_input('Strike Price (K)', min_value=0.0, format="%.2f")
+r = st.number_input('Risk-free Rate (r)', min_value=0.0, format="%.2%") / 100
+T = st.number_input('Time to Expiry (T)', min_value=0.0, format="%.2f")
+sigma = st.number_input('Volatility (sigma)', min_value=0.0, format="%.2%") / 100
 
-            st.subheader("Puts")
-            st.dataframe(puts)
+option_type = st.radio('Option Type', ('Call', 'Put'))
 
-            st.write(f"Available Expirations: {expirations}")
-        else:
-            st.error("Could not fetch options data. Please check the stock symbol and try again.")
+if option_type == 'Call':
+    option_type = 'call'
+else:
+    option_type = 'put'
 
-# Run the app
-if __name__ == "__main__":
-    main()
+# Calculate Option Price
+option_price = black_scholes_option_price(S, K, r, T, sigma, option_type)
+
+st.write(f'Theoretical Option Price: {option_price:.2f}')
