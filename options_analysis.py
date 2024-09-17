@@ -26,7 +26,7 @@ st.sidebar.header("Options Input")
 stock_symbol = st.sidebar.text_input("Stock Symbol", "RELIANCE")
 start_date = st.sidebar.date_input("Start Date", datetime.date(2023, 1, 1))
 end_date = st.sidebar.date_input("End Date", datetime.date(2023, 10, 25))
-option_type = st.sidebar.selectbox("Option Type", [‘call', ‘put'])
+option_type = st.sidebar.selectbox("Option Type", ['call', 'put'])
 strike_price = st.sidebar.number_input("Strike Price", min_value=0.0, value=100.0)
 interest_rate = st.sidebar.number_input("Risk-Free Rate", min_value=0.0, value=0.05)
 volatility = st.sidebar.number_input("Volatility", min_value=0.0, value=0.2)
@@ -42,7 +42,7 @@ except Exception as e:
 
 # Greeks Calculation
 if not data.empty:
-    S = data[‘Close'].iloc[-1]  # Use most recent closing price
+    S = data['Close'].iloc[-1]  # Use most recent closing price
     delta = calculate_delta(S, strike_price, expiry_days/365, interest_rate, volatility, option_type)
     st.write(f"Calculated Delta: {delta}")
 
@@ -58,7 +58,7 @@ if not data.empty:
     # Plot Payoff
     plt.figure(figsize=(10, 5))
     plt.plot(stock_prices, payoffs)
-    plt.xlabel(‘Stock Price at Expiry')
-    plt.ylabel(‘Profit/Loss')
-    plt.title(‘Straddle Payoff Diagram')
+    plt.xlabel('Stock Price at Expiry')
+    plt.ylabel('Profit/Loss')
+    plt.title('Straddle Payoff Diagram')
     st.pyplot(plt)
