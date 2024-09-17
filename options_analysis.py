@@ -14,8 +14,8 @@ symbol = st.sidebar.text_input("Enter Symbol", "RELIANCE")
 
 # Fetch expiry dates
 try:
-    expiry_dates = get_expiry_date(year=2023, month=12)
     expiry_date = st.sidebar.selectbox("Select Expiry Date", expiry_dates)
+    expiry_dates = get_expiry_date(year=2023, month=12)
 except Exception as e:
     st.sidebar.error(f"Error fetching expiry dates: {e}")
     expiry_date = None
