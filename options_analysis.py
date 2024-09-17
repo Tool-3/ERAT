@@ -1,96 +1,106 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import yfinance as yf
+from scipy.stats import norm
 import plotly.express as px
 
-# Sample Options Data (In practice, you would fetch this from an API or database)
-def get_sample_options_data():
-    # Placeholder for actual data retrieval logic
-    data = {
-        'Option Type': ['Call', 'Put', 'Call', 'Put'],
-        'Strike Price': [15000, 15000, 15500, 15500],
-        'Expiry Date': ['2023-12-31', '2023-12-31', '2023-12-31', '2023-12-31'],
-        'Premium': [250, 300, 200, 150],
-        'Implied Volatility': [0.25, 0.30, 0.20, 0.15],
-    }
-    return pd.DataFrame(data)
+# Fetch real-time options data from Yahoo Finance
+def fetch_options_data(ticker):
+    stock = yf.Ticker(ticker)
+    expirations = stock.options
+    if not expirations:
+        st.error(f"No options data available for {ticker}.")
+        return pd.DataFrame(), pd.DataFrame(), []
+    
+    # Fetch the first expiration options data (for simplicity)
+    opt_chain = stock.option_chain(expirations[0])
+    calls = opt_chain.calls
+    puts = opt_chain.puts
+    return calls, puts, expirations
 
-# Calculate Payoff for an Option
-def calculate_payoff(option_type, strike_price, premium, spot_price):
-    if option_type == 'Call':
-        return max(0, spot_price - strike_price) - premium
-    elif option_type == 'Put':
-        return max(0, strike_price - spot_price) - premium
+# Calculate Greeks using the Black-Scholes model
+def calculate_greeks(option_df, stock_price, risk_free_rate=0.01):
+    T = (pd.to_datetime(option_df['lastTradeDate']) - pd.to_datetime('today')).dt.days / 365
+    d1 = (np.log(stock_price / option_df['strike']) + (risk_free_rate + 0.5 * option_df['impliedVolatility'] ** 2) * T) / (option_df['impliedVolatility'] * np.sqrt(T))
+    d2 = d1 - option_df['impliedVolatility'] * np.sqrt(T)
+    
+    option_df['Delta'] = norm.cdf(d1)
+    option_df['Gamma'] = norm.pdf(d1) / (stock_price * option_df['impliedVolatility'] * np.sqrt(T))
+    option_df['Theta'] = (-stock_price * norm.pdf(d1) * option_df['impliedVolatility']) / (2 * np.sqrt(T))
+    option_df['Theta'] -= risk_free_rate * option_df['strike'] * np.exp(-risk_free_rate * T) * norm.cdf(d2)
+    option_df['Vega'] = stock_price * norm.pdf(d1) * np.sqrt(T)
+    option_df['Rho'] = option_df['strike'] * T * np.exp(-risk_free_rate * T) * norm.cdf(d2)
+    
+    return option_df
 
-# Main Application
-st.title("📈 Indian Options Trading Analytics Tool")
+# Monte Carlo simulation for Probability of Profit
+def simulate_profit(option_df, stock_price, num_simulations=1000, days=30):
+    results = []
+    for i in range(num_simulations):
+        # Simulate random price movement
+        simulated_spot = stock_price * np.exp((0 - 0.5 * option_df['impliedVolatility']**2) * days/365 + option_df['impliedVolatility'] * np.sqrt(days/365) * np.random.normal())
+        if option_df['Option Type'] == 'Call':
+            payoff = max(0, simulated_spot - option_df['strike']) - option_df['Premium']
+        elif option_df['Option Type'] == 'Put':
+            payoff = max(0, option_df['strike'] - simulated_spot) - option_df['Premium']
+        
+        results.append(payoff > 0)  # Check if profit was made
+    probability_of_profit = np.mean(results)
+    return probability_of_profit
+
+# Main application
+st.title("📈 Real-Time Options Trading Analytics Tool with Greeks & Profitability")
 
 # Sidebar for user input
 st.sidebar.header("Options Portfolio")
-spot_price = st.sidebar.slider("Current Spot Price", 14000, 16000, 15000, step=100)
+ticker = st.sidebar.text_input("Enter Stock Symbol", value="AAPL").upper()
 
-# Fetch options data
-options_data = get_sample_options_data()
+# Fetch options data if ticker is valid
+if ticker:
+    stock = yf.Ticker(ticker)
+    stock_price = stock.history(period="1d")['Close'].iloc[0]
+    st.sidebar.write(f"Current Price of {ticker}: ${stock_price:.2f}")
 
-# User can select multiple option contracts from the sample portfolio
-selected_options = st.sidebar.multiselect(
-    "Select Options Contracts",
-    options_data.index,
-    format_func=lambda x: f"{options_data.at[x, 'Option Type']} {options_data.at[x, 'Strike Price']} - {options_data.at[x, 'Expiry Date']}"
-)
+    calls, puts, expirations = fetch_options_data(ticker)
 
-# Filter the portfolio based on user selection
-portfolio = options_data.loc[selected_options]
+    # Allow user to select option contracts (calls or puts)
+    st.sidebar.subheader("Select Options Contracts")
+    option_type = st.sidebar.radio("Option Type", ("Calls", "Puts"))
+    options_data = calls if option_type == "Calls" else puts
+    
+    selected_options = st.sidebar.multiselect(
+        "Select Options Contracts",
+        options_data.index,
+        format_func=lambda x: f"{options_data.at[x, 'strike']} - Exp: {options_data.at[x, 'lastTradeDate']}"
+    )
 
-# Display Portfolio
-st.write("## 📋 Selected Options Portfolio")
-st.dataframe(portfolio)
+    # Show selected portfolio
+    portfolio = options_data.loc[selected_options]
+    st.write(f"## Selected {option_type} Portfolio")
+    st.write(portfolio)
 
-# Calculate and display Profit/Loss Scenarios
-st.write("## 💰 Profit/Loss Scenarios at Spot Price: ₹{:,}".format(spot_price))
+    # Calculate and display Greeks
+    if not portfolio.empty:
+        portfolio = calculate_greeks(portfolio, stock_price)
+        st.write(f"## Greeks for Selected {option_type} Contracts")
+        st.write(portfolio[['strike', 'Delta', 'Gamma', 'Theta', 'Vega', 'Rho']])
+    
+    # Calculate and display probability of profit
+    st.write("## Probability of Profit (Monte Carlo Simulation)")
+    for idx, row in portfolio.iterrows():
+        probability = simulate_profit(row, stock_price)
+        st.write(f"Option {row['strike']} - Probability of Profit: {probability:.2%}")
+    
+    # Plot Greeks (Delta vs Strike)
+    st.write("## Greeks Plot (Delta vs Strike)")
+    fig = px.scatter(portfolio, x='strike', y='Delta', size='volume', color='impliedVolatility', 
+                     title="Delta vs Strike", labels={'strike': 'Strike Price', 'Delta': 'Delta'})
+    st.plotly_chart(fig)
 
-payoff_data = []
-for _, row in portfolio.iterrows():
-    payoff = calculate_payoff(row['Option Type'], row['Strike Price'], row['Premium'], spot_price)
-    payoff_data.append({
-        'Option': f"{row['Option Type']} {row['Strike Price']}",
-        'Payoff (₹)': payoff
-    })
-
-payoff_df = pd.DataFrame(payoff_data)
-st.write(payoff_df)
-
-# Payoff Graph
-st.write("## 📊 Payoff Graph")
-fig = px.bar(
-    payoff_df, 
-    x='Option', 
-    y='Payoff (₹)', 
-    title=f"Option Payoff at Spot Price: ₹{spot_price}",
-    labels={'Payoff (₹)': 'Payoff (₹)', 'Option': 'Option Contract'},
-    color='Payoff (₹)',
-    color_continuous_scale='Blues'
-)
-fig.update_layout(
-    xaxis_title="Option Contract",
-    yaxis_title="Payoff (₹)",
-    plot_bgcolor='rgba(0,0,0,0)',
-    paper_bgcolor='rgba(0,0,0,0)',
-    font=dict(size=12),
-)
-st.plotly_chart(fig)
-
-# Sidebar footer
 st.sidebar.markdown("""
 ---
-🛠 **Features to Develop:**
-- Integration with real-time data
-- Greeks calculation (Delta, Gamma, Theta, Vega, Rho)
-- Advanced analytics like probability of profit
-""")
-
-# Main footer
-st.markdown("""
----
-📊 **Note:** The current version uses sample data. In future releases, we will integrate real-time data from financial APIs and offer advanced options analytics. Stay tuned!
+🛠 **Features Coming Soon:**
+- Additional analytics such as VaR, Expected Return.
+- Real-time advanced options pricing models.
 """)
