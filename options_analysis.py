@@ -15,8 +15,8 @@ expireyear = st.sidebar.text_input("Enter Expire Year"," " )
 expiremonth = st.sidebar.text_input("Enter Expire month"," " )
 # Fetch expiry dates
 try:
-    expiry_date = st.sidebar.selectbox("Select Expiry Date", expiry_dates)
-    expiry_dates = get_expiry_date(year="expireyear", month="expiremonth")
+    #expiry_date = st.sidebar.selectbox("Select Expiry Date", expiry_dates)
+    expiry_date = get_expiry_date(year="expireyear", month="expiremonth")
 except Exception as e:
     st.sidebar.error(f"Error fetching expiry dates: {e}")
     expiry_date = None
