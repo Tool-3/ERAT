@@ -19,21 +19,37 @@ def fetch_options_data(ticker):
     puts = opt_chain.puts
     return calls, puts, expirations
 
-1# Calculate Greeks using the Black-Scholes model
+# Calculate Greeks using the Black-Scholes model
 def calculate_greeks(option_df, stock_price, risk_free_rate=0.01):
-    # Correct the current date handling
-    T = (pd.to_datetime(option_df['lastTradeDate']) - pd.Timestamp('today')).dt.days / 365
-    d1 = (np.log(stock_price / option_df['strike']) + (risk_free_rate + 0.5 * option_df['impliedVolatility'] ** 2) * T) / (option_df['impliedVolatility'] * np.sqrt(T))
-    d2 = d1 - option_df['impliedVolatility'] * np.sqrt(T)
-    
-    option_df['Delta'] = norm.cdf(d1)
-    option_df['Gamma'] = norm.pdf(d1) / (stock_price * option_df['impliedVolatility'] * np.sqrt(T))
-    option_df['Theta'] = (-stock_price * norm.pdf(d1) * option_df['impliedVolatility']) / (2 * np.sqrt(T))
-    option_df['Theta'] -= risk_free_rate * option_df['strike'] * np.exp(-risk_free_rate * T) * norm.cdf(d2)
-    option_df['Vega'] = stock_price * norm.pdf(d1) * np.sqrt(T)
-    option_df['Rho'] = option_df['strike'] * T * np.exp(-risk_free_rate * T) * norm.cdf(d2)
-    
-    return option_df
+    try:
+        # Ensure 'lastTradeDate' is in datetime format
+        option_df['lastTradeDate'] = pd.to_datetime(option_df['lastTradeDate'], errors='coerce')
+        
+        # Filter out any rows with invalid or NaN 'lastTradeDate'
+        option_df = option_df.dropna(subset=['lastTradeDate'])
+        
+        # Calculate time to maturity (T) in years
+        T = (option_df['lastTradeDate'] - pd.Timestamp('today')).dt.days / 365.0
+        
+        # Handle division by zero or very small T values to avoid errors
+        T = T.apply(lambda x: max(x, 1e-6))
+
+        # Calculate d1 and d2 for the Black-Scholes model
+        d1 = (np.log(stock_price / option_df['strike']) + (risk_free_rate + 0.5 * option_df['impliedVolatility'] ** 2) * T) / (option_df['impliedVolatility'] * np.sqrt(T))
+        d2 = d1 - option_df['impliedVolatility'] * np.sqrt(T)
+        
+        # Calculate Greeks
+        option_df['Delta'] = norm.cdf(d1)
+        option_df['Gamma'] = norm.pdf(d1) / (stock_price * option_df['impliedVolatility'] * np.sqrt(T))
+        option_df['Theta'] = (-stock_price * norm.pdf(d1) * option_df['impliedVolatility']) / (2 * np.sqrt(T))
+        option_df['Theta'] -= risk_free_rate * option_df['strike'] * np.exp(-risk_free_rate * T) * norm.cdf(d2)
+        option_df['Vega'] = stock_price * norm.pdf(d1) * np.sqrt(T)
+        option_df['Rho'] = option_df['strike'] * T * np.exp(-risk_free_rate * T) * norm.cdf(d2)
+        
+        return option_df
+    except Exception as e:
+        st.error(f"Error calculating Greeks: {str(e)}")
+        return option_df
 
 # Monte Carlo simulation for Probability of Profit
 def simulate_profit(option_df, stock_price, num_simulations=1000, days=30):
