@@ -19,9 +19,10 @@ def fetch_options_data(ticker):
     puts = opt_chain.puts
     return calls, puts, expirations
 
-# Calculate Greeks using the Black-Scholes model
+1# Calculate Greeks using the Black-Scholes model
 def calculate_greeks(option_df, stock_price, risk_free_rate=0.01):
-    T = (pd.to_datetime(option_df['lastTradeDate']) - pd.to_datetime('today')).dt.days / 365
+    # Correct the current date handling
+    T = (pd.to_datetime(option_df['lastTradeDate']) - pd.Timestamp('today')).dt.days / 365
     d1 = (np.log(stock_price / option_df['strike']) + (risk_free_rate + 0.5 * option_df['impliedVolatility'] ** 2) * T) / (option_df['impliedVolatility'] * np.sqrt(T))
     d2 = d1 - option_df['impliedVolatility'] * np.sqrt(T)
     
