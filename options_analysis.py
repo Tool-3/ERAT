@@ -19,26 +19,26 @@ def straddle_payoff(S, K, call_premium, put_premium):
     return np.maximum(S - K, 0) - call_premium + np.maximum(K - S, 0) - put_premium
 
 # Set up the Streamlit UI
-st.title(“Enhanced Indian Options Trading Analysis Tool”)
+st.title("Enhanced Indian Options Trading Analysis Tool")
 
 # Sidebar for user inputs
-st.sidebar.header(“Options Input”)
-stock_symbol = st.sidebar.text_input(“Stock Symbol”, “RELIANCE”)
-start_date = st.sidebar.date_input(“Start Date”, datetime.date(2023, 1, 1))
-end_date = st.sidebar.date_input(“End Date”, datetime.date(2023, 10, 25))
-option_type = st.sidebar.selectbox(“Option Type”, [‘call', ‘put'])
-strike_price = st.sidebar.number_input(“Strike Price”, min_value=0.0, value=100.0)
-interest_rate = st.sidebar.number_input(“Risk-Free Rate”, min_value=0.0, value=0.05)
-volatility = st.sidebar.number_input(“Volatility”, min_value=0.0, value=0.2)
-expiry_days = st.sidebar.number_input(“Days to Expiry”, min_value=1, value=30)
+st.sidebar.header("Options Input")
+stock_symbol = st.sidebar.text_input("Stock Symbol", "RELIANCE")
+start_date = st.sidebar.date_input("Start Date", datetime.date(2023, 1, 1))
+end_date = st.sidebar.date_input("End Date", datetime.date(2023, 10, 25))
+option_type = st.sidebar.selectbox("Option Type", [‘call', ‘put'])
+strike_price = st.sidebar.number_input("Strike Price", min_value=0.0, value=100.0)
+interest_rate = st.sidebar.number_input("Risk-Free Rate", min_value=0.0, value=0.05)
+volatility = st.sidebar.number_input("Volatility", min_value=0.0, value=0.2)
+expiry_days = st.sidebar.number_input("Days to Expiry", min_value=1, value=30)
 
 # Fetch Historical Data
 try:
     data = get_history(symbol=stock_symbol, start=start_date, end=end_date, index=False)
-    st.write(f"Fetched historical data for {stock_symbol}“)
+    st.write(f"Fetched historical data for {stock_symbol}")
     st.dataframe(data.head())
 except Exception as e:
-    st.error(f"Error fetching data: {e}”)
+    st.error(f"Error fetching data: {e}")
 
 # Greeks Calculation
 if not data.empty:
@@ -47,9 +47,9 @@ if not data.empty:
     st.write(f"Calculated Delta: {delta}")
 
 # Straddle Strategy Analysis
-st.sidebar.write(“Straddle Strategy”)
-call_premium = st.sidebar.number_input(“Call Premium”, min_value=0.0, value=10.0)
-put_premium = st.sidebar.number_input(“Put Premium”, min_value=0.0, value=10.0)
+st.sidebar.write("Straddle Strategy")
+call_premium = st.sidebar.number_input("Call Premium", min_value=0.0, value=10.0)
+put_premium = st.sidebar.number_input("Put Premium", min_value=0.0, value=10.0)
 
 if not data.empty:
     stock_prices = np.arange(S - 20, S + 20, 1)
