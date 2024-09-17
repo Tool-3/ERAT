@@ -17,27 +17,27 @@ def fetch_options_data(ticker):
 
 # Streamlit App
 def main():
-    st.title(“Indian Stock Market Option Analysis Tool”)
+    st.title("Indian Stock Market Option Analysis Tool")
 
     # Sidebar inputs
-    st.sidebar.header(“User Input”)
-    ticker = st.sidebar.text_input(“Stock Symbol”, “RELIANCE.NS”).strip()
+    st.sidebar.header("User Input")
+    ticker = st.sidebar.text_input("Stock Symbol", "RELIANCE.NS").strip()
 
     # Fetch and display options data
     if ticker:
         calls, puts, expirations = fetch_options_data(ticker)
         if not calls.empty and not puts.empty:
-            st.write(f"Options data for {ticker}“)
-            st.subheader(“Calls”)
+            st.write(f"Options data for {ticker}")
+            st.subheader("Calls")
             st.dataframe(calls)
 
-            st.subheader(“Puts”)
+            st.subheader("Puts")
             st.dataframe(puts)
 
-            st.write(f"Available Expirations: {expirations}”)
+            st.write(f"Available Expirations: {expirations}")
         else:
-            st.error(“Could not fetch options data. Please check the stock symbol and try again.”)
+            st.error("Could not fetch options data. Please check the stock symbol and try again.")
 
 # Run the app
-if name == “main”:
+if name == "main":
     main()
