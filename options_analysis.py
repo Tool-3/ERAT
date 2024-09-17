@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 # Function to calculate Delta
 def calculate_delta(S, K, T, r, sigma, option_type='call'):
     d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
-    if option_type == ‘call':
+    if option_type == 'call':
         return norm.cdf(d1)
     else:
         return -norm.cdf(-d1)
