@@ -1,5 +1,5 @@
 from nsepy import get_history
-  import datetime
+import datetime
 
   start = datetime.datetime(2023, 1, 1)
   end = datetime.datetime(2023, 10, 25)
