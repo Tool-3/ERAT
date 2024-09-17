@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import yfinance as yf
 import matplotlib.pyplot as plt
+import ta
 
 # Title of the app
 st.title("Equity Research Analysis Tool")
@@ -42,8 +43,6 @@ st.subheader("Moving Averages")
 data['MA50'] = data['Close'].rolling(window=50).mean()
 data['MA200'] = data['Close'].rolling(window=200).mean()
 st.line_chart(data[['Close', 'MA50', 'MA200']])
-
-import ta
 
 # Calculate RSI
 data['RSI'] = ta.momentum.RSIIndicator(data['Close']).rsi()
