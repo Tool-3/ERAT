@@ -50,3 +50,50 @@ data['RSI'] = ta.momentum.RSIIndicator(data['Close']).rsi()
 # Display RSI
 st.subheader("RSI")
 st.line_chart(data['RSI'])
+
+# Calculate MACD
+macd = ta.trend.MACD(data['Close'])
+data['MACD'] = macd.macd()
+data['MACD_Signal'] = macd.macd_signal()
+data['MACD_Diff'] = macd.macd_diff()
+
+# Display MACD
+st.subheader("MACD")
+st.line_chart(data[['MACD', 'MACD_Signal', 'MACD_Diff']])
+
+# Calculate Bollinger Bands
+bollinger = ta.volatility.BollingerBands(data['Close'])
+data['BB_Middle'] = bollinger.bollinger_mavg()
+data['BB_Upper'] = bollinger.bollinger_hband()
+data['BB_Lower'] = bollinger.bollinger_lband()
+
+# Display Bollinger Bands
+st.subheader("Bollinger Bands")
+fig, ax = plt.subplots()
+ax.plot(data['Close'], label='Close Price')
+ax.plot(data['BB_Middle'], label='BB Middle', linestyle='--')
+ax.plot(data['BB_Upper'], label='BB Upper', linestyle='--')
+ax.plot(data['BB_Lower'], label='BB Lower', linestyle='--')
+ax.set_xlabel('Date')
+ax.set_ylabel('Price')
+ax.legend()
+st.pyplot(fig)
+
+# Volume Analysis
+st.subheader("Volume Analysis")
+fig, ax = plt.subplots()
+ax.bar(data.index, data['Volume'], color='blue')
+ax.set_xlabel('Date')
+ax.set_ylabel('Volume')
+st.pyplot(fig)
+
+# Fetch and display fundamental data
+st.subheader("Fundamental Data")
+ticker_info = yf.Ticker(ticker)
+st.write(ticker_info.info)
+
+# Display financial statements
+st.subheader("Financial Statements")
+st.write(ticker_info.financials)
+st.write(ticker_info.balance_sheet)
+st.write(ticker_info.cashflow)
