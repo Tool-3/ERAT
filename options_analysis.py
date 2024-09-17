@@ -1,94 +1,96 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import yfinance as yf
 import plotly.express as px
-from scipy.stats import norm
 
-# Function to fetch options data
-def fetch_options_data(ticker):
-    try:
-        stock = yf.Ticker(ticker)
-        expirations = stock.options
+# Sample Options Data (In practice, you would fetch this from an API or database)
+def get_sample_options_data():
+    # Placeholder for actual data retrieval logic
+    data = {
+        'Option Type': ['Call', 'Put', 'Call', 'Put'],
+        'Strike Price': [15000, 15000, 15500, 15500],
+        'Expiry Date': ['2023-12-31', '2023-12-31', '2023-12-31', '2023-12-31'],
+        'Premium': [250, 300, 200, 150],
+        'Implied Volatility': [0.25, 0.30, 0.20, 0.15],
+    }
+    return pd.DataFrame(data)
 
-        # Check if expirations are available
-        if not expirations:
-            st.error(f"No options data available for {ticker}.")
-            return pd.DataFrame(), pd.DataFrame(), []
+# Calculate Payoff for an Option
+def calculate_payoff(option_type, strike_price, premium, spot_price):
+    if option_type == 'Call':
+        return max(0, spot_price - strike_price) - premium
+    elif option_type == 'Put':
+        return max(0, strike_price - spot_price) - premium
 
-        # Retrieve the option chain for a specified expiration
-        opt_data = stock.option_chain(expirations[0])
-        calls = opt_data.calls
-        puts = opt_data.puts
+# Main Application
+st.title("📈 Indian Options Trading Analytics Tool")
 
-        return calls, puts, expirations
-    except Exception as e:
-        st.error(f"Error fetching data for {ticker}: {str(e)}.")
-        return pd.DataFrame(), pd.DataFrame(), []
+# Sidebar for user input
+st.sidebar.header("Options Portfolio")
+spot_price = st.sidebar.slider("Current Spot Price", 14000, 16000, 15000, step=100)
 
-# Function to calculate Greeks
-def calculate_greeks(option_df, stock_price, risk_free_rate=0.01):
-    try:
-        T = (option_df['lastTradeDate'] - pd.to_datetime('today')).dt.days / 365
-        option_df['d1'] = (np.log(stock_price / option_df['strike']) + (risk_free_rate + 0.5 * option_df['impliedVolatility'] ** 2) * T) / (option_df['impliedVolatility'] * np.sqrt(T))
-        option_df['d2'] = option_df['d1'] - option_df['impliedVolatility'] * np.sqrt(T)
-        
-        option_df['Delta'] = norm.cdf(option_df['d1'])
-        option_df['Gamma'] = norm.pdf(option_df['d1']) / (stock_price * option_df['impliedVolatility'] * np.sqrt(T))
-        option_df['Theta'] = - (stock_price * norm.pdf(option_df['d1']) * option_df['impliedVolatility']) / (2 * np.sqrt(T))
-        option_df['Theta'] -= risk_free_rate * option_df['strike'] * np.exp(-risk_free_rate * T) * norm.cdf(option_df['d2'])
-        option_df['Vega'] = stock_price * norm.pdf(option_df['d1']) * np.sqrt(T)
-        option_df['Rho'] = option_df['strike'] * T * np.exp(-risk_free_rate * T) * norm.cdf(option_df['d2'])
-        return option_df
-    except KeyError as e:
-        st.error(f"Key error in calculating Greeks: {str(e)}")
-        return option_df
+# Fetch options data
+options_data = get_sample_options_data()
 
-# Streamlit App
-def main():
-    st.set_page_config(page_title="Options Analysis Tool", page_icon="📈")
-    
-    st.title("Indian Stock Market Option Analysis Tool")
-    st.sidebar.header("User Inputs")
+# User can select multiple option contracts from the sample portfolio
+selected_options = st.sidebar.multiselect(
+    "Select Options Contracts",
+    options_data.index,
+    format_func=lambda x: f"{options_data.at[x, 'Option Type']} {options_data.at[x, 'Strike Price']} - {options_data.at[x, 'Expiry Date']}"
+)
 
-    # Sample ticker list
-    INDIAN_TICKERS = ['AAPL','RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'HINDUNILVR.NS', 'ITC.NS', 'ICICIBANK.NS', 'SBIN.NS', 'LT.NS', 'BHARTIARTL.NS']
-    
-    ticker = st.sidebar.selectbox("Select Stock Symbol", options=INDIAN_TICKERS)
-    
-    if ticker:
-        stock = yf.Ticker(ticker)
-        try:
-            stock_price = stock.history(period="1d")['Close'].iloc[0]
-        except IndexError:
-            st.error(f"Failed to retrieve the stock price for {ticker}.")
-            return
+# Filter the portfolio based on user selection
+portfolio = options_data.loc[selected_options]
 
-        calls, puts, expirations = fetch_options_data(ticker)
-        
-        if not calls.empty and not puts.empty:
-            calls = calculate_greeks(calls, stock_price)
-            puts = calculate_greeks(puts, stock_price)
+# Display Portfolio
+st.write("## 📋 Selected Options Portfolio")
+st.dataframe(portfolio)
 
-            st.markdown(f"### Options Data for {ticker}")
-            st.markdown("#### Calls")
-            fig = px.scatter(calls, x='strike', y='openInterest', size='volume', color='impliedVolatility', 
-                             hover_data=['Delta', 'Gamma', 'Theta', 'Vega', 'Rho'], title='Call Options - Open Interest vs Strike')
-            st.plotly_chart(fig)
+# Calculate and display Profit/Loss Scenarios
+st.write("## 💰 Profit/Loss Scenarios at Spot Price: ₹{:,}".format(spot_price))
 
-            st.markdown("#### Puts")
-            fig = px.scatter(puts, x='strike', y='openInterest', size='volume', color='impliedVolatility', 
-                             hover_data=['Delta', 'Gamma', 'Theta', 'Vega', 'Rho'], title='Put Options - Open Interest vs Strike')
-            st.plotly_chart(fig)
+payoff_data = []
+for _, row in portfolio.iterrows():
+    payoff = calculate_payoff(row['Option Type'], row['Strike Price'], row['Premium'], spot_price)
+    payoff_data.append({
+        'Option': f"{row['Option Type']} {row['Strike Price']}",
+        'Payoff (₹)': payoff
+    })
 
-            st.sidebar.write(f"Available Expirations: {', '.join(expirations)}")
-        else:
-            st.info("No data available for the selected symbol.")
+payoff_df = pd.DataFrame(payoff_data)
+st.write(payoff_df)
 
-    st.sidebar.markdown("""
-    ---
-    Note: Data provided by Yahoo Finance. Real-time accuracy may vary.
-    """)
+# Payoff Graph
+st.write("## 📊 Payoff Graph")
+fig = px.bar(
+    payoff_df, 
+    x='Option', 
+    y='Payoff (₹)', 
+    title=f"Option Payoff at Spot Price: ₹{spot_price}",
+    labels={'Payoff (₹)': 'Payoff (₹)', 'Option': 'Option Contract'},
+    color='Payoff (₹)',
+    color_continuous_scale='Blues'
+)
+fig.update_layout(
+    xaxis_title="Option Contract",
+    yaxis_title="Payoff (₹)",
+    plot_bgcolor='rgba(0,0,0,0)',
+    paper_bgcolor='rgba(0,0,0,0)',
+    font=dict(size=12),
+)
+st.plotly_chart(fig)
 
-if __name__ == "__main__":
-    main()
+# Sidebar footer
+st.sidebar.markdown("""
+---
+🛠 **Features to Develop:**
+- Integration with real-time data
+- Greeks calculation (Delta, Gamma, Theta, Vega, Rho)
+- Advanced analytics like probability of profit
+""")
+
+# Main footer
+st.markdown("""
+---
+📊 **Note:** The current version uses sample data. In future releases, we will integrate real-time data from financial APIs and offer advanced options analytics. Stay tuned!
+""")
