@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-from nsepy import get_history
-from nsepy.derivatives import get_expiry_date, get_quote
+from nsepy import get_history, get_quote
+from nsepy.derivatives import get_expiry_date
 import matplotlib.pyplot as plt
 import yfinance as yf
 
