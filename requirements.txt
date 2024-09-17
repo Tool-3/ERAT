@@ -5,4 +5,4 @@ matplotlib
 ta
 nsepy 
 scipy
-ploty
+plotly
