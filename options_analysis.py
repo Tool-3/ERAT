@@ -39,5 +39,5 @@ def main():
             st.error("Could not fetch options data. Please check the stock symbol and try again.")
 
 # Run the app
-if name == "main":
+if name == "options_analysis":
     main()
