@@ -52,7 +52,7 @@ def main():
     st.sidebar.header("User Inputs")
 
     # Sample ticker list
-    INDIAN_TICKERS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'HINDUNILVR.NS', 'ITC.NS', 'ICICIBANK.NS', 'SBIN.NS', 'LT.NS', 'BHARTIARTL.NS']
+    INDIAN_TICKERS = ['AAPL','RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'HINDUNILVR.NS', 'ITC.NS', 'ICICIBANK.NS', 'SBIN.NS', 'LT.NS', 'BHARTIARTL.NS']
     
     ticker = st.sidebar.selectbox("Select Stock Symbol", options=INDIAN_TICKERS)
     
