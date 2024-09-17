@@ -12,10 +12,9 @@ st.title("Indian Options Trading Analysis Tool")
 st.sidebar.header("User Input")
 symbol = st.sidebar.text_input("Enter Symbol", "RELIANCE")
 expiry_date = st.sidebar.selectbox("Select Expiry Date", get_expiry_date(year=2023, month=12))
-
 # Fetch option chain data
-option_chain = get_option_chain(symbol, expiry_date)
-
+option_chain = get_quote('NIFTY', series='EQ', instrument='FUTIDX', expiry=expiry, option_type='CE', strike=300)
+print(data)
 # Display the option chain data
 st.subheader(f"Option Chain for {symbol} on {expiry_date}")
 st.write(option_chain)
