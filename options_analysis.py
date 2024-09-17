@@ -1,39 +1,94 @@
 import streamlit as st
+import pandas as pd
 import numpy as np
+import yfinance as yf
+import plotly.express as px
 from scipy.stats import norm
 
-# Option Pricing function using Black Scholes Model
-def black_scholes_option_price(S, K, r, T, sigma, option_type='call'):
-    d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
-    d2 = d1 - sigma * np.sqrt(T)
-    
-    if option_type == 'call':
-        option_price = S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
-    elif option_type == 'put':
-        option_price = K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
-    
-    return option_price
+# Function to fetch options data
+def fetch_options_data(ticker):
+    try:
+        stock = yf.Ticker(ticker)
+        expirations = stock.options
+
+        # Check if expirations are available
+        if not expirations:
+            st.error(f"No options data available for {ticker}.")
+            return pd.DataFrame(), pd.DataFrame(), []
+
+        # Retrieve the option chain for a specified expiration
+        opt_data = stock.option_chain(expirations[0])
+        calls = opt_data.calls
+        puts = opt_data.puts
+
+        return calls, puts, expirations
+    except Exception as e:
+        st.error(f"Error fetching data for {ticker}: {str(e)}.")
+        return pd.DataFrame(), pd.DataFrame(), []
+
+# Function to calculate Greeks
+def calculate_greeks(option_df, stock_price, risk_free_rate=0.01):
+    try:
+        T = (option_df['lastTradeDate'] - pd.to_datetime('today')).dt.days / 365
+        option_df['d1'] = (np.log(stock_price / option_df['strike']) + (risk_free_rate + 0.5 * option_df['impliedVolatility'] ** 2) * T) / (option_df['impliedVolatility'] * np.sqrt(T))
+        option_df['d2'] = option_df['d1'] - option_df['impliedVolatility'] * np.sqrt(T)
+        
+        option_df['Delta'] = norm.cdf(option_df['d1'])
+        option_df['Gamma'] = norm.pdf(option_df['d1']) / (stock_price * option_df['impliedVolatility'] * np.sqrt(T))
+        option_df['Theta'] = - (stock_price * norm.pdf(option_df['d1']) * option_df['impliedVolatility']) / (2 * np.sqrt(T))
+        option_df['Theta'] -= risk_free_rate * option_df['strike'] * np.exp(-risk_free_rate * T) * norm.cdf(option_df['d2'])
+        option_df['Vega'] = stock_price * norm.pdf(option_df['d1']) * np.sqrt(T)
+        option_df['Rho'] = option_df['strike'] * T * np.exp(-risk_free_rate * T) * norm.cdf(option_df['d2'])
+        return option_df
+    except KeyError as e:
+        st.error(f"Key error in calculating Greeks: {str(e)}")
+        return option_df
 
 # Streamlit App
-st.title('Options Analysis in the Indian Stock Market')
+def main():
+    st.set_page_config(page_title="Options Analysis Tool", page_icon="📈")
+    
+    st.title("Indian Stock Market Option Analysis Tool")
+    st.sidebar.header("User Inputs")
 
-st.header('Calculate Option Price and Greeks using Black-Scholes Model')
+    # Sample ticker list
+    INDIAN_TICKERS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'HINDUNILVR.NS', 'ITC.NS', 'ICICIBANK.NS', 'SBIN.NS', 'LT.NS', 'BHARTIARTL.NS']
+    
+    ticker = st.sidebar.selectbox("Select Stock Symbol", options=INDIAN_TICKERS)
+    
+    if ticker:
+        stock = yf.Ticker(ticker)
+        try:
+            stock_price = stock.history(period="1d")['Close'].iloc[0]
+        except IndexError:
+            st.error(f"Failed to retrieve the stock price for {ticker}.")
+            return
 
-# Input variables
-S = st.number_input('Underlying Stock Price (S)', min_value=0.0, format="%.2f")
-K = st.number_input('Strike Price (K)', min_value=0.0, format="%.2f")
-r = st.number_input('Risk-free Rate (r)', min_value=0.0, format="%.2%") / 100
-T = st.number_input('Time to Expiry (T)', min_value=0.0, format="%.2f")
-sigma = st.number_input('Volatility (sigma)', min_value=0.0, format="%.2%") / 100
+        calls, puts, expirations = fetch_options_data(ticker)
+        
+        if not calls.empty and not puts.empty:
+            calls = calculate_greeks(calls, stock_price)
+            puts = calculate_greeks(puts, stock_price)
 
-option_type = st.radio('Option Type', ('Call', 'Put'))
+            st.markdown(f"### Options Data for {ticker}")
+            st.markdown("#### Calls")
+            fig = px.scatter(calls, x='strike', y='openInterest', size='volume', color='impliedVolatility', 
+                             hover_data=['Delta', 'Gamma', 'Theta', 'Vega', 'Rho'], title='Call Options - Open Interest vs Strike')
+            st.plotly_chart(fig)
 
-if option_type == 'Call':
-    option_type = 'call'
-else:
-    option_type = 'put'
+            st.markdown("#### Puts")
+            fig = px.scatter(puts, x='strike', y='openInterest', size='volume', color='impliedVolatility', 
+                             hover_data=['Delta', 'Gamma', 'Theta', 'Vega', 'Rho'], title='Put Options - Open Interest vs Strike')
+            st.plotly_chart(fig)
 
-# Calculate Option Price
-option_price = black_scholes_option_price(S, K, r, T, sigma, option_type)
+            st.sidebar.write(f"Available Expirations: {', '.join(expirations)}")
+        else:
+            st.info("No data available for the selected symbol.")
 
-st.write(f'Theoretical Option Price: {option_price:.2f}')
+    st.sidebar.markdown("""
+    ---
+    Note: Data provided by Yahoo Finance. Real-time accuracy may vary.
+    """)
+
+if __name__ == "__main__":
+    main()
