@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from nsepy import get_history
-from nsepy.derivatives import get_expiry_date
+from nsepy.derivatives import get_expiry_date, get_option_chain
 import matplotlib.pyplot as plt
 import yfinance as yf
 
@@ -11,12 +11,11 @@ st.title("Indian Options Trading Analysis Tool")
 # Sidebar for user input
 st.sidebar.header("User Input")
 symbol = st.sidebar.text_input("Enter Symbol", "RELIANCE")
-expireyear = st.sidebar.text_input("Enter Expire Year"," " )
-expiremonth = st.sidebar.text_input("Enter Expire month"," " )
+
 # Fetch expiry dates
 try:
-    #expiry_date = st.sidebar.selectbox("Select Expiry Date", expiry_dates)
-    expiry_date = get_expiry_date(year="expireyear", month="expiremonth")
+    expiry_dates = get_expiry_date(year=2023, month=12)
+    expiry_date = st.sidebar.selectbox("Select Expiry Date", expiry_dates)
 except Exception as e:
     st.sidebar.error(f"Error fetching expiry dates: {e}")
     expiry_date = None
