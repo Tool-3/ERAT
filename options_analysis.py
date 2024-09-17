@@ -21,7 +21,8 @@ def fetch_options_data(ticker):
 
 # Calculate Greeks using the Black-Scholes model
 def calculate_greeks(option_df, stock_price, risk_free_rate=0.01):
-    T = (pd.to_datetime(option_df['lastTradeDate']) - pd.to_datetime('today')).dt.days / 365
+    option_df['lastTradeDate'] = option_df['lastTradeDate'].dt.tz_localize(None)
+    T = (option_df['lastTradeDate'] - pd.to_datetime('today')).dt.days / 365
     d1 = (np.log(stock_price / option_df['strike']) + (risk_free_rate + 0.5 * option_df['impliedVolatility'] ** 2) * T) / (option_df['impliedVolatility'] * np.sqrt(T))
     d2 = d1 - option_df['impliedVolatility'] * np.sqrt(T)
 
@@ -33,7 +34,7 @@ def calculate_greeks(option_df, stock_price, risk_free_rate=0.01):
     option_df['Rho'] = option_df['strike'] * T * np.exp(-risk_free_rate * T) * norm.cdf(d2)
 
     return option_df
-
+    
 # Monte Carlo simulation for Probability of Profit
 def simulate_profit(option_df, stock_price, num_simulations=1000, days=30):
     results = []
