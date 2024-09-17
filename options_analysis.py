@@ -11,6 +11,7 @@ st.title("Indian Options Trading Analysis Tool")
 # Sidebar for user input
 st.sidebar.header("User Input")
 symbol = st.sidebar.text_input("Enter Symbol", "RELIANCE")
+expire date = st.sidebar.text_input("Enter Expire Date"," " )
 
 # Fetch expiry dates
 try:
